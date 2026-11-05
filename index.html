@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Control de motor</title>
+<!-- Integración directa de los módulos Firebase indispensables -->
+<script src="https://gstatic.com"></script>
+<script src="https://gstatic.com"></script>
+<style>
+  body { font-family: Arial, sans-serif; background:#10151c; color:#eee;
+         display:flex; flex-direction:column; align-items:center; margin-top:30px; }
+  h1   { font-size:1.5rem; }
+  .caja{ background:#1b2430; padding:26px; border-radius:14px; width:88%; max-width:440px;
+         text-align:center; box-shadow:0 4px 14px rgba(0,0,0,.5); }
+  #porc{ font-size:3rem; margin:6px 0; color:#4fc3f7; }
+  input[type=range]{ width:100%; height:40px; cursor:pointer; }
+  .info{ color:#9aa7b5; font-size:.9rem; }
+  button{ width:46%; margin:6px 1%; padding:16px 8px; border:none; border-radius:10px;
+          font-weight:bold; font-size:1rem; cursor:pointer; color:#10151c; }
+  #bMarcha{ background:#66bb6a; }
+  #bGiro  { background:#ffb74d; }
+  .fila{ margin-top:14px; }
+  .estado{ margin-top:10px; font-size:1rem; }
+</style>
+</head>
+<body>
+  <h1>Control de motor trifásico (Global)</h1>
+  <div class="caja">
+    <div class="estado">Motor: <b id="eMarcha">--</b> | Giro: <b id="eGiro">--</b></div>
+
+    <div class="fila">
+      <button id="bMarcha" onclick="alternarMarcha()">ARRANQUE / PARO</button>
+      <button id="bGiro" onclick="alternarGiro()">CAMBIAR GIRO</button>
+    </div>
+
+    <div id="porc">0%</div>
+    <input type="range" id="slider" min="0" max="99" value="0">
+    <p class="info">Posición del potenciómetro: <span id="val">0</span> / 99</p>
+  </div>
+
+<script>
+  // ---------- Configuración de las credenciales de Firebase ----------
+  const firebaseConfig = {
+    apiKey: "TU_WEB_API_KEY",                                                             // <--- Coloca tu Web API Key aquí
+    databaseURL: "https://firebaseio.com"           // <--- Tu URL completa de la base de datos
+  };
+  
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  const slider = document.getElementById('slider');
+  const porc   = document.getElementById('porc');
+  const val    = document.getElementById('val');
+  let estadoLocal = { marcha: false, giro: false, velocidad: 0 };
+
+  // Escuchar cambios en la nube y actualizar la interfaz gráfica en tiempo real
+  db.ref('motor').on('value', (snapshot) => {
+    const data = snapshot.val();
+    if(data) {
+      estadoLocal = data;
+      document.getElementById('eMarcha').textContent = data.marcha ? 'ENCENDIDO' : 'APAGADO';
+      document.getElementById('eGiro').textContent   = data.giro ? 'Sentido 2' : 'Sentido 1';
+      val.textContent  = data.velocidad;
+      porc.textContent = Math.round(data.velocidad * 100 / 99) + '%';
+      slider.value     = data.velocidad;
+    }
+  });
+
+  function alternarMarcha() {
+    db.ref('motor/marcha').set(!estadoLocal.marcha);
+  }
+
+  function alternarGiro() {
+    db.ref('motor/giro').set(!estadoLocal.giro);
+  }
+
+  // Detecta el cambio final cuando el usuario suelta el control deslizante (slider)
+  slider.addEventListener('change', () => {
+    db.ref('motor/velocidad').set(parseInt(slider.value));
+  });
+</script>
+</body>
+</html>
